@@ -219,7 +219,7 @@ def write_header(args):
     # flash page size
     args.output.write(pack('I', args.pagesize))
     # version of boot image header
-    args.output.write(pack('I', args.header_version))
+    args.output.write(pack('I', max(args.header_version, filesize(args.dt))))
     # os version and patch level
     args.output.write(pack('I', (args.os_version << 11) | args.os_patch_level))
     # asciiz product name
@@ -230,6 +230,7 @@ def write_header(args):
     update_sha(sha, args.kernel)
     update_sha(sha, args.ramdisk)
     update_sha(sha, args.second)
+    update_sha(sha, args.dt)
 
     if args.header_version > 0:
         update_sha(sha, args.recovery_dtbo)
@@ -502,6 +503,7 @@ def parse_cmdline():
     parser.add_argument('--second', type=FileType('rb'),
                         help='path to the second bootloader')
     parser.add_argument('--dtb', type=FileType('rb'), help='path to the dtb')
+    parser.add_argument('--dt', type=FileType('rb'), help='path to the dt')
     dtbo_group = parser.add_mutually_exclusive_group()
     dtbo_group.add_argument('--recovery_dtbo', type=FileType('rb'),
                             help='path to the recovery DTBO')
@@ -617,6 +619,7 @@ def write_data(args, pagesize):
     write_padded_file(args.output, args.kernel, pagesize)
     write_padded_file(args.output, args.ramdisk, pagesize)
     write_padded_file(args.output, args.second, pagesize)
+    write_padded_file(args.output, args.dt, pagesize)
 
     if args.header_version > 0 and args.header_version < 3:
         write_padded_file(args.output, args.recovery_dtbo, pagesize)
