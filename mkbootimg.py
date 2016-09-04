@@ -529,7 +529,7 @@ def parse_cmdline():
     parser.add_argument('--board', type=AsciizBytes(bufsize=BOOT_NAME_SIZE),
                         default='', help='board name')
     parser.add_argument('--pagesize', type=parse_int,
-                        choices=[2**i for i in range(11, 15)], default=2048,
+                        choices=[2**i for i in range(11, 18)], default=2048,
                         help='page size')
     parser.add_argument('--id', action='store_true',
                         help='print the image ID on standard output')
