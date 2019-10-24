@@ -169,15 +169,20 @@ struct boot_img_hdr_v2 : public boot_img_hdr_v1 {
  * image is as follows:
  *
  * +---------------------+
- * | boot header         | 1 page
+ * | boot header         | 4096 bytes
  * +---------------------+
- * | kernel              | m pages
+ * | kernel              | m
  * +---------------------+
- * | ramdisk             | n pages
+ * | ramdisk             | n
  * +---------------------+
  *
- * and the structure of the vendor boot image (introduced with version 3) is as
- * follows:
+ * m = (kernel_size + 4096 - 1) / 4096
+ * n = (ramdisk_size + 4096 - 1) / 4096
+ *
+ * Note that in version 3 of the boot image header, page size is fixed at 4096 bytes.
+ *
+ * The structure of the vendor boot image (introduced with version 3 and
+ * required to be present when a v3 boot image is used) is as follows:
  *
  * +---------------------+
  * | vendor boot header  | 1 page
@@ -187,12 +192,12 @@ struct boot_img_hdr_v2 : public boot_img_hdr_v1 {
  * | dtb                 | p pages
  * +---------------------+
 
- * m = (kernel_size + page_size - 1) / page_size
- * n = (ramdisk_size + page_size - 1) / page_size
  * o = (vendor_ramdisk_size + page_size - 1) / page_size
  * p = (dtb_size + page_size - 1) / page_size
  *
- * 0. all entities are page_size aligned in flash
+ * 0. all entities in the boot image are 4096-byte aligned in flash, all
+ *    entities in the vendor boot image are page_size (determined by the vendor
+ *    and specified in the vendor boot image header) aligned in flash
  * 1. kernel, ramdisk, vendor ramdisk, and DTB are required (size != 0)
  * 2. load the kernel and DTB at the specified physical address (kernel_addr,
  *    dtb_addr)

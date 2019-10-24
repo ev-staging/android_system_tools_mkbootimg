@@ -22,6 +22,8 @@ import re
 from struct import pack
 
 
+BOOT_IMAGE_HEADER_V3_PAGESIZE = 4096
+
 def filesize(f):
     if f is None:
         return 0
@@ -77,15 +79,13 @@ def write_header_v3(args):
 
     args.output.write(pack('I', args.header_version))   # version of bootimage header
     args.output.write(pack('1536s', args.cmdline.encode()))
-    pad_file(args.output, args.pagesize)
+    pad_file(args.output, BOOT_IMAGE_HEADER_V3_PAGESIZE)
 
 def write_vendor_boot_header(args):
     VENDOR_BOOT_IMAGE_HEADER_V3_SIZE = 2108
     BOOT_MAGIC = 'VNDRBOOT'.encode()
 
     args.vendor_boot.write(pack('8s', BOOT_MAGIC))
-    if filesize(args.vendor_ramdisk) == 0:
-        raise ValueError("Vendor ramdisk image must not be empty.")
     args.vendor_boot.write(pack(
         '5I',
         args.header_version,                            # version of header
@@ -270,15 +270,15 @@ def parse_cmdline():
     return parser.parse_args()
 
 
-def write_data(args):
-    write_padded_file(args.output, args.kernel, args.pagesize)
-    write_padded_file(args.output, args.ramdisk, args.pagesize)
-    write_padded_file(args.output, args.second, args.pagesize)
+def write_data(args, pagesize):
+    write_padded_file(args.output, args.kernel, pagesize)
+    write_padded_file(args.output, args.ramdisk, pagesize)
+    write_padded_file(args.output, args.second, pagesize)
 
     if args.header_version > 0 and args.header_version < 3:
-        write_padded_file(args.output, args.recovery_dtbo, args.pagesize)
+        write_padded_file(args.output, args.recovery_dtbo, pagesize)
     if args.header_version == 2:
-        write_padded_file(args.output, args.dtb, args.pagesize)
+        write_padded_file(args.output, args.dtb, pagesize)
 
 
 def write_vendor_boot_data(args):
@@ -295,12 +295,16 @@ def main():
             raise ValueError('--vendor_ramdisk missing or invalid')
         write_vendor_boot_header(args)
         write_vendor_boot_data(args)
-        return
     if args.output is not None:
         if args.kernel is None:
             raise ValueError('kernel must be supplied when creating a boot image')
+        if args.second is not None and args.header_version > 2:
+            raise ValueError('--second not compatible with given header version')
         img_id = write_header(args)
-        write_data(args)
+        if args.header_version > 2:
+            write_data(args, BOOT_IMAGE_HEADER_V3_PAGESIZE)
+        else:
+            write_data(args, args.pagesize)
         if args.id and img_id is not None:
             # Python 2's struct.pack returns a string, but py3 returns bytes.
             if isinstance(img_id, str):
