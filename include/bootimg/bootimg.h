@@ -103,12 +103,13 @@ struct boot_img_hdr_v0 {
 
     uint8_t name[BOOT_NAME_SIZE]; /* asciiz product name */
 
-    uint8_t cmdline[BOOT_ARGS_SIZE];
+    uint8_t cmdline[BOOT_ARGS_SIZE]; /* asciiz kernel commandline */
 
     uint32_t id[8]; /* timestamp / checksum / sha1 / etc */
 
     // Supplemental command line data; kept here to maintain
     // binary compatibility with older versions of mkbootimg.
+    // Asciiz.
     uint8_t extra_cmdline[BOOT_EXTRA_ARGS_SIZE];
 } __attribute__((packed));
 
@@ -278,6 +279,7 @@ struct boot_img_hdr_v3 {
     // Version of the boot image header.
     uint32_t header_version;
 
+    // Asciiz kernel commandline.
     uint8_t cmdline[BOOT_ARGS_SIZE + BOOT_EXTRA_ARGS_SIZE];
 } __attribute__((packed));
 
@@ -295,7 +297,7 @@ struct vendor_boot_img_hdr_v3 {
 
     uint32_t vendor_ramdisk_size; /* size in bytes */
 
-    uint8_t cmdline[VENDOR_BOOT_ARGS_SIZE];
+    uint8_t cmdline[VENDOR_BOOT_ARGS_SIZE]; /* asciiz kernel commandline */
 
     uint32_t tags_addr; /* physical addr for kernel tags (if required) */
     uint8_t name[VENDOR_BOOT_NAME_SIZE]; /* asciiz product name */
@@ -307,7 +309,7 @@ struct vendor_boot_img_hdr_v3 {
 } __attribute__((packed));
 
 /* When the boot image header has a version of 4, the structure of the boot
- * image is the same as version 3:
+ * image is as follows:
  *
  * +---------------------+
  * | boot header         | 4096 bytes
@@ -316,9 +318,12 @@ struct vendor_boot_img_hdr_v3 {
  * +---------------------+
  * | ramdisk             | n pages
  * +---------------------+
+ * | boot signature      | g pages
+ * +---------------------+
  *
  * m = (kernel_size + 4096 - 1) / 4096
  * n = (ramdisk_size + 4096 - 1) / 4096
+ * g = (signature_size + 4096 - 1) / 4096
  *
  * Note that in version 4 of the boot image header, page size is fixed at 4096
  * bytes.
@@ -356,15 +361,18 @@ struct vendor_boot_img_hdr_v3 {
  *
  * The vendor ramdisk table holds the size, offset, type, name and hardware
  * identifiers of each ramdisk. The type field denotes the type of its content.
- * The hardware identifiers are specified in the board_id field in each table
- * entry. The board_id field is consist of a vector of unsigned integer words,
- * and the encoding scheme is defined by the hardware vendor.
+ * The vendor ramdisk names are unique. The hardware identifiers are specified
+ * in the board_id field in each table entry. The board_id field is consist of a
+ * vector of unsigned integer words, and the encoding scheme is defined by the
+ * hardware vendor.
  *
  * For the different type of ramdisks, there are:
  *    - VENDOR_RAMDISK_TYPE_NONE indicates the value is unspecified.
- *    - VENDOR_RAMDISK_TYPE_PLATFORM ramdisk contains platform specific bits.
- *    - VENDOR_RAMDISK_TYPE_RECOVERY ramdisk contains recovery resources.
- *    - VENDOR_RAMDISK_TYPE_DLKM ramdisk contains dynamic loadable kernel
+ *    - VENDOR_RAMDISK_TYPE_PLATFORM ramdisks contain platform specific bits, so
+ *      the bootloader should always load these into memory.
+ *    - VENDOR_RAMDISK_TYPE_RECOVERY ramdisks contain recovery resources, so
+ *      the bootloader should load these when booting into recovery.
+ *    - VENDOR_RAMDISK_TYPE_DLKM ramdisks contain dynamic loadable kernel
  *      modules.
  *
  * Version 4 of the vendor boot image also adds a bootconfig section to the end
@@ -390,6 +398,7 @@ struct vendor_boot_img_hdr_v3 {
  *    jump to kernel_addr
  */
 struct boot_img_hdr_v4 : public boot_img_hdr_v3 {
+    uint32_t signature_size; /* size in bytes */
 } __attribute__((packed));
 
 struct vendor_boot_img_hdr_v4 : public vendor_boot_img_hdr_v3 {
